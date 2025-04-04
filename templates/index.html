@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Quake Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        body {
+            margin: 0;
+        }
+
+        #map {
+            height: 100vh;
+            width: 100vw;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="map" data-quake='{{ quake_data_json|safe }}'></div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        const mapEl = document.getElementById("map");
+        let quakeData;
+
+        try {
+            quakeData = JSON.parse(mapEl.dataset.quake);
+        } catch (err) {
+            console.error("🚨 JSON parse error:", err);
+            alert("Unable to parse quake data.");
+        }
+
+        if (!quakeData || quakeData.error) {
+            console.error("⚠️ Quake data error:", quakeData?.error);
+            alert("Failed to load quake data.");
+        } else {
+            const allQuakes = Object.values(quakeData || {});
+            const sorted = allQuakes
+                .sort((a, b) => parseInt(b.time) - parseInt(a.time))
+                .slice(0, 10);
+
+            const map = L.map("map").setView([64.1265, -21.8174], 6);
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                attribution: "© OpenStreetMap contributors"
+            }).addTo(map);
+
+            sorted.forEach((q, i) => {
+                const lat = parseFloat(q.lat);
+                const lon = parseFloat(q.lon);
+                const finalLat = !isNaN(lat) ? lat : 63.9;
+                const finalLon = !isNaN(lon) ? lon : -22.5;
+                const mag = q.magnitude && !isNaN(parseFloat(q.magnitude)) ? q.magnitude : "N/A";
+
+                let timeFormatted = "Invalid Date";
+                if (q.time && !isNaN(parseInt(q.time))) {
+                    const epoch = parseInt(q.time);
+                    if (epoch > 1000000000) {
+                        timeFormatted = new Date(epoch * 1000).toLocaleString();
+                    }
+                }
+
+                L.marker([finalLat, finalLon])
+                    .addTo(map)
+                    .bindPopup(`<strong>#${i + 1} Mag:</strong> ${mag}<br><strong>Time:</strong> ${timeFormatted}`);
+            });
+        }
+    </script>
+</body>
+
+</html>
